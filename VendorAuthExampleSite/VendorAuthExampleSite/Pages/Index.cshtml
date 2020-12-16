@@ -1,0 +1,41 @@
+﻿@page "{handler?}"
+@model VendorAuthExampleSite.Pages.Shared.IndexModel
+@{
+    ViewData["Title"] = "Index";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<h1>Sample Vendor Page</h1>
+
+<div class="container-fluid">
+    <div class="row pb-3">
+        <div class="col">
+            <a class="btn btn-primary" href="test">Test the authorization process</a>.
+        </div>
+    </div>
+    <div class="row">
+        <div class="col">
+            <div class="alert alert-warning" id="errorMessage">
+                @Model.ErrorMessage
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col">
+            <div class="alert alert-success" id="responseMessage" style="overflow-wrap: break-word;">
+                @Model.TokenResponseMessage
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    if ($('#errorMessage').text().trim().length < 1) {
+        $('#errorMessage').hide();
+    }
+    if ($('#responseMessage').text().trim().length < 1) {
+        $('#responseMessage').hide();
+    }
+</script>
