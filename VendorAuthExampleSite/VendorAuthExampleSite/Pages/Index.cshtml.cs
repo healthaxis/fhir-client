@@ -1,9 +1,12 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.WebUtilities;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 
 namespace VendorAuthExampleSite.Pages.Shared
@@ -26,7 +29,6 @@ namespace VendorAuthExampleSite.Pages.Shared
             // injection, but let's keep things simple).
             Settings["client_id"] = "INSERT VALUE FROM DEVELOPER PORTAL";
             Settings["client_secret"] = "INSERT VALUE FROM DEVELOPER PORTAL";
-            Settings["site_uri"] = "INSERT VALUE PROVIDED BY MEMBER";
             Settings["scope"] = "INSERT WHAT YOU WANT TO ACCESS";
             Settings["auth_uri"] = "INSERT HEALTHAXIS AUTH URI";
             Settings["token_uri"] = "INSERT HEALTHAXIS TOKEN URI";
@@ -48,7 +50,6 @@ namespace VendorAuthExampleSite.Pages.Shared
                 ["response_type"] = "code",
                 ["scope"] = Settings["scope"],
                 ["redirect_uri"] = Settings["redirect_uri"],
-                ["site_uri"] = Settings["site_uri"],
                 ["state"] = "optional anti-forgery token"
             });
 
@@ -74,23 +75,34 @@ namespace VendorAuthExampleSite.Pages.Shared
 
             // Get the access token from the code. Auth codes are valid for one attempt, so if you receive a "authorization code
             // is incorrect" message if the redirect_uri or client_id is wrong, you will need to ask the user to approve again.
-            var payload = new
+            var payload = new Dictionary<string, string>
             {
-                code,
-                grant_type = "authorization_code",
-                client_id = Settings["client_id"],
-                client_secret = Settings["client_secret"],
-                redirect_uri = Settings["redirect_uri"],
-                expires_in = 360000 // token lifetime in seconds
+                ["code"] = code,
+                ["grant_type"] = "authorization_code",
+                ["client_id"] = Settings["client_id"],
+                ["client_secret"] = Settings["client_secret"],
+                ["redirect_uri"] = Settings["redirect_uri"],
+                ["expires_in"] = "360000" // token lifetime in seconds
             };
 
-            var response = await httpClient.PostAsJsonAsync(Settings["token_uri"], payload).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-            var result = await response.Content.ReadAsAsync<JObject>().ConfigureAwait(false);
-
-            TokenResponseMessage = (string)result["access_token"];
+            TokenResponseMessage = await GetAuthTokenAsync(httpClient, Settings["token_uri"], payload).ConfigureAwait(false);
 
             return Page();
+        }
+
+        async Task<string> GetAuthTokenAsync(HttpClient httpClient, string uri, Dictionary<string, string> form)
+        {
+            HttpRequestMessage requestMessage = new HttpRequestMessage(HttpMethod.Post, uri);
+            requestMessage.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            requestMessage.Content = new FormUrlEncodedContent(form);
+
+            var response = await httpClient.SendAsync(requestMessage).ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+
+            var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var token = JsonConvert.DeserializeObject<JObject>(content) ?? throw new InvalidOperationException("Azure API returned empty content");
+
+            return (string)token["access_token"];
         }
     }
 }
